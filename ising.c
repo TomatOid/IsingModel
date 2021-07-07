@@ -174,8 +174,8 @@ double metropolis(state_t *lattice, double j, double beta, int iterations)
     double energy = hamiltonian(lattice, j);
     for (int i = 0; i < iterations; i++) {
         // first, pick a random point in spacetime
-        int x = randomInt(0, SPACE_LEN - 1);
-        int t = randomInt(0, TIME_LEN - 1);
+        int x = randomInt(0, SPACE_LEN);
+        int t = randomInt(0, TIME_LEN);
 
         double delta = calculateEnergyChange(lattice, j, x, t);
 
