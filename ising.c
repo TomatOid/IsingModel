@@ -6,10 +6,11 @@
 typedef uint64_t state_t; // several spins in a compressed format for fast batch operations
 typedef int spin_t;       // the type used to represent a single spin
 
-#define SPINS_PER_STATE_T (sizeof(state_t) * CHAR_BIT)    // the number of spins stored in one state_t variable, aka the number of bits in state_t
-#define TIME_LEN 64                                       // size of lattice in the time dimension
-#define SPACE_LEN 64                                      // size of lattice in the space dimension
-#define SPACE_STATE_COUNT (SPACE_LEN / SPINS_PER_STATE_T) // number of state_t elements in the space dimension
+#define SPINS_PER_STATE_T (sizeof(state_t) * CHAR_BIT)                                // the number of spins stored in one state_t variable, aka the number of bits in state_t
+#define TIME_LEN 32                                                                   // size of lattice in the time dimension
+#define SPACE_LEN 33                                                                  // size of lattice in the space dimension
+#define SPACE_STATE_COUNT ((SPACE_LEN + SPINS_PER_STATE_T - 1) / SPINS_PER_STATE_T)   // number of state_t elements in the space dimension
+#define SPACE_REMAINDER ((SPINS_PER_STATE_T * SPACE_STATE_COUNT - 1) % SPACE_LEN + 1)
 //       space
 //      *------>
 // time | 0, 1
@@ -48,7 +49,7 @@ int randomInt(int lower, int upper)
 {
     int modulo = upper - lower;
     uint64_t random = xorshift256();
-    uint64_t unbiased_max = 0xffffffffffffffff - 0xffffffffffffffff % modulo;
+    uint64_t unbiased_max = 0xffffffffffffffff - (0xffffffffffffffff % modulo + 1) % modulo;
     while (__builtin_expect(random > unbiased_max, 0))
         random = xorshift256();
     return lower + random % modulo;
@@ -115,15 +116,20 @@ void printLattice(state_t *lattice)
 
 double hamiltonian(state_t *lattice, double j)
 {
+    //printf("%d\n", SPACE_REMAINDER);
     // multiply horizontally
     int horizontal_energy = 0;
     for (int i = 0; i < TIME_LEN; i++) {
         state_t last_carry = lattice[(i + 1) * SPACE_STATE_COUNT - 1] << (SPINS_PER_STATE_T - 1);
-        for (int j = 0; j < SPACE_STATE_COUNT; j++) {
+        printf("%lx\n", last_carry);
+        for (int j = 0; j < SPACE_STATE_COUNT - 1; j++) {
             state_t this_state = lattice[i * SPACE_STATE_COUNT + j];
             horizontal_energy += __builtin_popcountl(~((last_carry | this_state >> 1) ^ this_state));
             last_carry = this_state << (SPINS_PER_STATE_T - 1);
         }
+        state_t this_state = lattice[(i + 1) * SPACE_STATE_COUNT - 1];
+        printf("this_state: %lx\n", last_carry >> (SPINS_PER_STATE_T - SPACE_REMAINDER) | this_state >> 1);
+        horizontal_energy += __builtin_popcountl(~((last_carry >> (SPINS_PER_STATE_T - SPACE_REMAINDER) | this_state >> 1) ^ this_state) & (state_t)-1 >> (SPINS_PER_STATE_T - SPACE_REMAINDER));
     }
     // Now, we need to subtract some constant from it in order to account for the fact that a 0 -> -1 and 1 -> 1
     horizontal_energy = 2 * horizontal_energy - TIME_LEN * SPACE_LEN;
@@ -133,8 +139,9 @@ double hamiltonian(state_t *lattice, double j)
     state_t *above_row = lattice + (TIME_LEN - 1) * SPACE_STATE_COUNT;
     for (int i = 0; i < TIME_LEN; i++) {
         state_t *current_row = lattice + i * SPACE_STATE_COUNT;
-        for (int j = 0; j < SPACE_STATE_COUNT; j++)
+        for (int j = 0; j < SPACE_STATE_COUNT - 1; j++)
             vertical_energy += __builtin_popcountl(~(current_row[j] ^ above_row[j]));
+        vertical_energy += __builtin_popcountl(~(current_row[SPACE_STATE_COUNT - 1] ^ above_row[SPACE_STATE_COUNT - 1]) & ((state_t)-1 >> (SPINS_PER_STATE_T - SPACE_REMAINDER)));
         above_row = current_row;
     }
     // Same deal here
@@ -179,7 +186,6 @@ double metropolis(state_t *lattice, double j, double beta, int iterations)
 
         double delta = calculateEnergyChange(lattice, j, x, t);
 
-        //setSpinAt(lattice, x, t, getStateAt(lattice, x, t) * (2 * (random > exp(-beta * delta)) - 1));
         if (uniformFloat() <= exp(-beta * delta)) {
             flipSpinAt(lattice, x, t);
             energy += delta;
@@ -192,24 +198,14 @@ int main()
 {
     state_t lattice[TIME_LEN * SPACE_STATE_COUNT] = { 0 };
 
-    initLattice(lattice);
+    //initLattice(lattice);
     printLattice(lattice);
     printf("energy: %f\n", hamiltonian(lattice, 1));
 
-    double energy = metropolis(lattice, 1, 0.8, 90000);
+    double energy = metropolis(lattice, 1, 0.2, 90000);
+
     printLattice(lattice);
-    printf("new energy: %f\n", energy);
-
-    //for (int i = 0; i < 10; i++) {
-    //    int x = randomInt(0, SPACE_LEN - 1);
-    //    int t = randomInt(0, TIME_LEN - 1);
-
-    //    int before = getSpinAt(lattice, x, t);
-    //    flipSpinAt(lattice, x, t);
-    //    int after = getSpinAt(lattice, x, t);
-    //    if (before != -after)
-    //        puts("fail!");
-    //}
+    printf("new energy: %f, %f, %f\n", energy, hamiltonian(lattice, 1), hamiltonianDebug(lattice, 1));
 
     return 0;
 }
