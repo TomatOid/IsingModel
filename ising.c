@@ -186,8 +186,18 @@ double metropolis(state_t *lattice, double energy, double j, double beta, int it
         int t = randomInt(0, TIME_LEN);
 
         double delta = calculateEnergyChange(lattice, j, x, t);
+        double compare = exp(-beta * delta);
 
-        if (uniformFloat() <= exp(-beta * delta)) {
+        printf("delta: %f, compare: %f\n", delta, compare);
+        puts("neighbors:");
+        for (int p = -1; p <= 1; p++) {
+            for (int q = -1; q <= 1; q++)
+                printf("%c ", ',' - getSpinAt(lattice, x + p, t + q));
+            printf("\n");
+        }
+        printf("\n");
+
+        if (uniformFloat() <= compare) {
             flipSpinAt(lattice, x, t);
             energy += delta;
         }
