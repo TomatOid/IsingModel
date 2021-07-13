@@ -1,14 +1,16 @@
 #include <limits.h>
 #include <stdint.h>
+#include <errno.h>
 #include <stdio.h>
 #include <math.h>
+#include "npy_array/npy_array.h"
 
 typedef uint64_t state_t; // several spins in a compressed format for fast batch operations
 typedef int spin_t;       // the type used to represent a single spin
 
 #define SPINS_PER_STATE_T (sizeof(state_t) * CHAR_BIT)                                // the number of spins stored in one state_t variable, aka the number of bits in state_t
-#define TIME_LEN 32                                                                   // size of lattice in the time dimension
-#define SPACE_LEN 33                                                                  // size of lattice in the space dimension
+#define TIME_LEN 64                                                                   // size of lattice in the time dimension
+#define SPACE_LEN 64                                                                  // size of lattice in the space dimension
 #define SPACE_STATE_COUNT ((SPACE_LEN + SPINS_PER_STATE_T - 1) / SPINS_PER_STATE_T)   // number of state_t elements in the space dimension
 #define SPACE_REMAINDER ((SPINS_PER_STATE_T * SPACE_STATE_COUNT - 1) % SPACE_LEN + 1)
 //       space
@@ -103,14 +105,14 @@ void flipSpinAt(state_t *lattice, int x, int t)
 
 void printLattice(state_t *lattice)
 {
-    for (int i = 0; i < SPACE_LEN; i++) {
+    for (int i = 0; i < TIME_LEN; i++) {
         printf("< ");
-        for (int j = 0; j < TIME_LEN - 1; j++) {
+        for (int j = 0; j < SPACE_LEN - 1; j++) {
             // write either +1 or -1 depending on the spin
             // ASCII 43: '+' ASCII 44: ',' ASCII 45: '-'
-            printf("%c ", ',' - getSpinAt(lattice, i, j));
+            printf("%c ", ',' - getSpinAt(lattice, j, i));
         }
-        printf("%c >\n", ',' - getSpinAt(lattice, i, TIME_LEN - 1));
+        printf("%c >\n", ',' - getSpinAt(lattice, SPACE_LEN - 1, i));
     }
 }
 
@@ -121,14 +123,14 @@ double hamiltonian(state_t *lattice, double j)
     int horizontal_energy = 0;
     for (int i = 0; i < TIME_LEN; i++) {
         state_t last_carry = lattice[(i + 1) * SPACE_STATE_COUNT - 1] << (SPINS_PER_STATE_T - 1);
-        printf("%lx\n", last_carry);
+        //printf("%lx\n", last_carry);
         for (int j = 0; j < SPACE_STATE_COUNT - 1; j++) {
             state_t this_state = lattice[i * SPACE_STATE_COUNT + j];
             horizontal_energy += __builtin_popcountl(~((last_carry | this_state >> 1) ^ this_state));
             last_carry = this_state << (SPINS_PER_STATE_T - 1);
         }
         state_t this_state = lattice[(i + 1) * SPACE_STATE_COUNT - 1];
-        printf("this_state: %lx\n", last_carry >> (SPINS_PER_STATE_T - SPACE_REMAINDER) | this_state >> 1);
+        //printf("this_state: %lx\n", last_carry >> (SPINS_PER_STATE_T - SPACE_REMAINDER) | this_state >> 1);
         horizontal_energy += __builtin_popcountl(~((last_carry >> (SPINS_PER_STATE_T - SPACE_REMAINDER) | this_state >> 1) ^ this_state) & (state_t)-1 >> (SPINS_PER_STATE_T - SPACE_REMAINDER));
     }
     // Now, we need to subtract some constant from it in order to account for the fact that a 0 -> -1 and 1 -> 1
@@ -176,9 +178,8 @@ double calculateEnergyChange(state_t *lattice, double j, int x, int t)
     return 2.0 * j * (double)current;
 }
 
-double metropolis(state_t *lattice, double j, double beta, int iterations)
+double metropolis(state_t *lattice, double energy, double j, double beta, int iterations)
 {
-    double energy = hamiltonian(lattice, j);
     for (int i = 0; i < iterations; i++) {
         // first, pick a random point in spacetime
         int x = randomInt(0, SPACE_LEN);
@@ -194,18 +195,76 @@ double metropolis(state_t *lattice, double j, double beta, int iterations)
     return energy;
 }
 
-int main()
+npy_array_t createNpyDoubleArray1D(size_t count)
 {
-    state_t lattice[TIME_LEN * SPACE_STATE_COUNT] = { 0 };
+    // on little endian, this returns 0, on big endian, this is 1
+    // this will compile error out on super weird machines that have 
+    // sizeof(char) == sizeof(int) instead of returning false results
+    int endianness = !((uint8_t *)(&(int){1}))[0];
+    npy_array_t result = (npy_array_t) { .data = calloc(count, sizeof(double)),
+        .ndim = 1, .endianness = '<' + 2 * endianness, .typechar = 'f', 
+        .elem_size = sizeof(double), .fortran_order = 0,
+    };
+    if (!result.data) {
+        fprintf(stderr, "Error allocating numpy array, abort!\n");
+        exit(EXIT_FAILURE);
+    }
+    result.shape[0] = count;
+    return result;
+}
 
-    //initLattice(lattice);
-    printLattice(lattice);
-    printf("energy: %f\n", hamiltonian(lattice, 1));
+int main(int argc, char **argv)
+{
+    if (argc != 4) {
+        fprintf(stderr, "usage: %s <j> <beta> <iterations>\n", argv[0]);
+        exit(EXIT_FAILURE);
+    }
 
-    double energy = metropolis(lattice, 1, 0.2, 90000);
+    char *end_ptr;
+    double j = strtod(argv[1], &end_ptr);
+    if (errno == ERANGE || end_ptr == argv[1]) {
+        fprintf(stderr, "j must be a valid double-width floating point number, got %s\n", argv[1]);
+        exit(EXIT_FAILURE);
+    }
+    double beta = strtod(argv[2], &end_ptr);
+    if (errno == ERANGE || end_ptr == argv[2]) {
+        fprintf(stderr, "beta must be a valid double-width floating point number, got %s\n", argv[2]);
+        exit(EXIT_FAILURE);
+    }
+    unsigned long iterations = strtoul(argv[3], &end_ptr, 10);
+    if (errno == ERANGE) {
+        fprintf(stderr, "value %s for iterations is out of range for type unsigned long\n", argv[3]);
+        exit(EXIT_FAILURE);
+    }
+    else if (errno == EINVAL || end_ptr == argv[3]) {
+        fprintf(stderr, "iterations must be a valid positive integer, got %s\n", argv[3]);
+        exit(EXIT_FAILURE);
+    }
 
-    printLattice(lattice);
-    printf("new energy: %f, %f, %f\n", energy, hamiltonian(lattice, 1), hamiltonianDebug(lattice, 1));
+    state_t hot_lattice[TIME_LEN * SPACE_STATE_COUNT]  = { 0 };
+    state_t cold_lattice[TIME_LEN * SPACE_STATE_COUNT] = { 0 };
+
+    // fill hot_lattice with random spins
+    initLattice(hot_lattice);
+
+    npy_array_t hot_energies  = createNpyDoubleArray1D(iterations);
+    npy_array_t cold_energies = createNpyDoubleArray1D(iterations);
+
+    // iterate the metropolis algorithm, saving the energies of the hot and cold
+    // lattices to the numpy arrays for later graphing
+    double hot_energy  = hamiltonian(hot_lattice, j);
+    double cold_energy = hamiltonian(cold_lattice, j);
+    for (unsigned long i = 0; i < iterations; i++) {
+        ((double *)(hot_energies.data))[i] = hot_energy / (SPACE_LEN * TIME_LEN);
+        hot_energy  = metropolis(hot_lattice, hot_energy, j, beta, SPACE_LEN * TIME_LEN);
+        ((double *)(cold_energies.data))[i] = cold_energy / (SPACE_LEN * TIME_LEN);
+        cold_energy = metropolis(cold_lattice, cold_energy, j, beta, SPACE_LEN * TIME_LEN);
+    }
+
+    npy_array_save("hot_energies.npy", &hot_energies);
+    npy_array_save("cold_energies.npy", &cold_energies);
+
+    printf("hot: %f, cold: %f\n", hot_energy, cold_energy);
 
     return 0;
 }
