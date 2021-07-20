@@ -9,10 +9,12 @@ int main(int argc, char **argv)
         fprintf(stderr, "usage: %s <j> <beta> <iterations> <count> <filename>\n", argv[0]);
         exit(EXIT_FAILURE);
     }
-    double j = parseDouble(argv[1], "j");
+
+    double j    = parseDouble(argv[1], "j");
     double beta = parseDouble(argv[2], "beta");
+
     unsigned long iterations = parseUnsignedLong(argv[3], "iterations");
-    unsigned long count = parseUnsignedLong(argv[4], "count");
+    unsigned long count      = parseUnsignedLong(argv[4], "count");
 
     char *filename = argv[5];
 

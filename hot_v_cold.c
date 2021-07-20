@@ -1,6 +1,7 @@
 #include "ising.h"
 #include "npy_array/npy_array.h"
 #include "record.h"
+#include "parse_args.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -12,26 +13,10 @@ int main(int argc, char **argv)
         exit(EXIT_FAILURE);
     }
 
-    char *end_ptr;
-    double j = strtod(argv[1], &end_ptr);
-    if (errno == ERANGE || end_ptr == argv[1]) {
-        fprintf(stderr, "j must be a valid double-width floating point number, got %s\n", argv[1]);
-        exit(EXIT_FAILURE);
-    }
-    double beta = strtod(argv[2], &end_ptr);
-    if (errno == ERANGE || end_ptr == argv[2]) {
-        fprintf(stderr, "beta must be a valid double-width floating point number, got %s\n", argv[2]);
-        exit(EXIT_FAILURE);
-    }
-    unsigned long iterations = strtoul(argv[3], &end_ptr, 10);
-    if (errno == ERANGE) {
-        fprintf(stderr, "value %s for iterations is out of range for type unsigned long\n", argv[3]);
-        exit(EXIT_FAILURE);
-    }
-    else if (errno == EINVAL || end_ptr == argv[3]) {
-        fprintf(stderr, "iterations must be a valid positive integer, got %s\n", argv[3]);
-        exit(EXIT_FAILURE);
-    }
+    double j    = parseDouble(argv[1], "j");
+    double beta = parseDouble(argv[2], "beta");
+    
+    unsigned long iterations = parseUnsignedLong(argv[3], "iterations");
 
     state_t hot_lattice[TIME_LEN * SPACE_STATE_COUNT]  = { 0 };
     state_t cold_lattice[TIME_LEN * SPACE_STATE_COUNT] = { 0 };
