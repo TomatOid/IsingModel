@@ -33,19 +33,19 @@ int writeHeader(FILE *fp, double j, double beta)
     // make little endian versions of each to write to file
     // yes, this is ugly, but the alternatives are not as portable
     uint64_t j_le = htole64(j);
-    if (fwrite(&j_le, sizeof(j_le), 1, fp) != sizeof(j_le))
+    if (fwrite(&j_le, sizeof(j_le), 1, fp) != 1)
         return -1;
     uint64_t beta_le = htole64(beta);
-    if (fwrite(&beta_le, sizeof(beta_le), 1, fp) != sizeof(beta_le))
+    if (fwrite(&beta_le, sizeof(beta_le), 1, fp) != 1)
         return -1;
     uint16_t lattice_time_len = htole16(TIME_LEN);
-    if (fwrite(&lattice_time_len, sizeof(lattice_time_len), 1, fp) != sizeof(lattice_time_len))
+    if (fwrite(&lattice_time_len, sizeof(lattice_time_len), 1, fp) != 1)
         return -1;
     uint16_t lattice_space_len = htole16(SPACE_LEN);
-    if (fwrite(&lattice_space_len, sizeof(lattice_space_len), 1, fp) != sizeof(lattice_space_len))
+    if (fwrite(&lattice_space_len, sizeof(lattice_space_len), 1, fp) != 1)
         return -1;
     uint16_t state_t_bytes = htole16(sizeof(state_t) * CHAR_BIT / 8);
-    if (fwrite(&state_t_bytes, sizeof(state_t_bytes), 1, fp) != sizeof(state_t_bytes))
+    if (fwrite(&state_t_bytes, sizeof(state_t_bytes), 1, fp) != 1)
         return -1;
 
     return 0;
@@ -92,30 +92,30 @@ int readHeader(FILE *fp, double *j, double *beta)
         return ERROR_BAD_PREFIX;
 
     uint64_t j_le;
-    if (fread(&j_le, sizeof(j_le), 1, fp) != sizeof(j_le))
+    if (fread(&j_le, sizeof(j_le), 1, fp) != 1)
         return ERROR_READ;
     *j = (double)le64toh(j_le);
 
     uint64_t beta_le;
-    if (fread(&beta_le, sizeof(beta_le), 1, fp) != sizeof(beta_le))
+    if (fread(&beta_le, sizeof(beta_le), 1, fp) != 1)
         return ERROR_READ;
     *beta = (double)le64toh(beta_le);
 
     uint16_t lattice_time_len;
-    if (fread(&lattice_time_len, sizeof(lattice_time_len), 1, fp) != sizeof(lattice_time_len))
+    if (fread(&lattice_time_len, sizeof(lattice_time_len), 1, fp) != 1)
         return ERROR_READ;
     if (lattice_time_len != htole16(TIME_LEN))
         return ERROR_LATTICE_SIZE;
 
     uint16_t lattice_space_len;
-    if (fread(&lattice_space_len, sizeof(lattice_space_len), 1, fp) != sizeof(lattice_space_len))
+    if (fread(&lattice_space_len, sizeof(lattice_space_len), 1, fp) != 1)
         return ERROR_READ;
     if (lattice_space_len != htole16(SPACE_LEN))
         return ERROR_LATTICE_SIZE;
 
     // could probably adapt for mismatched size at runtime but I don't really feel like it
     uint16_t state_t_bytes; 
-    if (fread(&state_t_bytes, sizeof(state_t_bytes), 1, fp) != sizeof(state_t_bytes))
+    if (fread(&state_t_bytes, sizeof(state_t_bytes), 1, fp) != 1)
         return ERROR_READ;
     if (state_t_bytes != htole16(sizeof(state_t) * CHAR_BIT / 8))
         return ERROR_STATE_SIZE;

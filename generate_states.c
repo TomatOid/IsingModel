@@ -26,11 +26,17 @@ int main(int argc, char **argv)
     
     state_t lattice[TIME_LEN * SPINS_PER_STATE_T];
 
-    writeHeader(data_file, j, beta);
+    if (writeHeader(data_file, j, beta)) {
+        fprintf(stderr, "error writing to file\n");
+        exit(EXIT_FAILURE);
+    }
     for (unsigned long i = 0; i < count; i++) {
         initLattice(lattice);
         metropolis(lattice, hamiltonian(lattice, j), j, beta, iterations);
-        writeState(data_file, lattice);
+        if (writeState(data_file, lattice)) {
+            fprintf(stderr, "error writing to file\n");
+            exit(EXIT_FAILURE);
+        }
     }
     fclose(data_file);
 }
