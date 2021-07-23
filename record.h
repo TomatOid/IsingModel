@@ -27,4 +27,4 @@ int writeState(FILE *fp, state_t *lattice);
 // assumes all pointers are valid, returns 0 on success
 int readHeader(FILE *fp, double *j, double *beta);
 
-int readLattice(FILE *fp, state_t *lattice);
+int readState(FILE *fp, state_t *lattice);

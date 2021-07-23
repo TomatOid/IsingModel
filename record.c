@@ -55,7 +55,7 @@ int writeHeader(FILE *fp, double j, double beta)
 // using little-endian byte ordering
 int writeState(FILE *fp, state_t *lattice)
 {
-    char buffer[SPACE_STATE_COUNT * TIME_LEN * sizeof(state_t)];
+    state_t buffer[SPACE_STATE_COUNT * TIME_LEN];
     for (size_t i = 0; i < SPACE_STATE_COUNT * TIME_LEN; i++) {
         // this will get optimized away by the compiler
         switch (sizeof(state_t) * CHAR_BIT) {
@@ -123,7 +123,7 @@ int readHeader(FILE *fp, double *j, double *beta)
     return READ_SUCCESS;
 }
 
-int readLattice(FILE *fp, state_t *lattice)
+int readState(FILE *fp, state_t *lattice)
 {
     if (fread(lattice, sizeof(state_t), SPACE_STATE_COUNT * TIME_LEN, fp) != SPACE_STATE_COUNT * TIME_LEN)
         return ERROR_READ;
