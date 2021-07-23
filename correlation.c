@@ -27,12 +27,17 @@ void addToCorrelationArray(state_t *lattice, int *correlation_array)
     }
 }
 
-int main()
+int main(int argc, char **argv)
 {
     state_t lattice[TIME_LEN * SPACE_STATE_COUNT];
     int correlation_array[TIME_LEN * SPACE_LEN] = { 0 };
 
-    FILE *data_file = fopen("states.dat", "r");
+    if (argc != 2) {
+        fprintf(stderr, "usage: %s <filename>\n", argv[0]);
+        exit(EXIT_FAILURE);
+    }
+
+    FILE *data_file = fopen(argv[1], "r");
     if (!data_file) {
         fputs("error opening data file", stderr);
         exit(EXIT_FAILURE);
