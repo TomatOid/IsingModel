@@ -69,7 +69,6 @@ spin_t getSpinAt(state_t *lattice, int x, int t)
     return 2 * bit - 1;
 }
 
-// takes the lattice, a position x, and a time t, and returns the spin at that point as either +1 or -1
 void setSpinAt(state_t *lattice, int x, int t, int spin)
 {
     // this could be optimized significantly if we could assume that SPACE_LEN and TIME_LEN are powers of 2
