@@ -32,10 +32,10 @@ int writeHeader(FILE *fp, double j, double beta)
 
     // make little endian versions of each to write to file
     // yes, this is ugly, but the alternatives are not as portable
-    uint64_t j_le = htole64(j);
+    uint64_t j_le = htole64(*((uint64_t *)&j));
     if (fwrite(&j_le, sizeof(j_le), 1, fp) != 1)
         return -1;
-    uint64_t beta_le = htole64(beta);
+    uint64_t beta_le = htole64(*((uint64_t *)&beta));
     if (fwrite(&beta_le, sizeof(beta_le), 1, fp) != 1)
         return -1;
     uint16_t lattice_time_len = htole16(TIME_LEN);
@@ -94,12 +94,12 @@ int readHeader(FILE *fp, double *j, double *beta)
     uint64_t j_le;
     if (fread(&j_le, sizeof(j_le), 1, fp) != 1)
         return ERROR_READ;
-    *j = (double)le64toh(j_le);
+    *(uint64_t *)j = le64toh(j_le);
 
     uint64_t beta_le;
     if (fread(&beta_le, sizeof(beta_le), 1, fp) != 1)
         return ERROR_READ;
-    *beta = (double)le64toh(beta_le);
+    *(uint64_t *)beta = le64toh(beta_le);
 
     uint16_t lattice_time_len;
     if (fread(&lattice_time_len, sizeof(lattice_time_len), 1, fp) != 1)
