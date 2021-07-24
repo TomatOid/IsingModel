@@ -54,7 +54,7 @@ int main(int argc, char **argv)
 
     int state_counter;
     for (state_counter = 0; readState(data_file, lattice) == READ_SUCCESS; state_counter++) {
-        multiplyLatticeBy(lattice, getSpinAt(lattice, 0, 0));
+        multiplyLatticeBy(lattice, getSpinAt(lattice, SPACE_LEN / 2, TIME_LEN / 2));
         addToCorrelationArray(lattice, correlation_array);
     }
 

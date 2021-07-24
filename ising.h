@@ -17,6 +17,7 @@ typedef int spin_t;       // the type used to represent a single spin
 //      v
 
 extern uint64_t xorshift_state[4];
+#pragma omp threadprivate(xorshift_state)
 
 // xorshiro256** PRNG
 uint64_t xorshift256();
