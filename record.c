@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdarg.h>
 
 const int8_t *file_ver_identifier = "ISI\x01";
 
@@ -22,6 +23,41 @@ npy_array_t createNpyDoubleArray1D(size_t count)
         exit(EXIT_FAILURE);
     }
     result.shape[0] = count;
+    return result;
+}
+
+npy_array_t createNpyDoubleArrayNd(int ndim, ...)
+{
+    va_list vararg;
+    va_start(vararg, ndim);
+
+    int endianness = !((uint8_t *)(&(int){1}))[0];
+    npy_array_t result = (npy_array_t) { .data = NULL,
+        .ndim = ndim, .endianness = '<' + 2 * endianness, .typechar = 'f', 
+        .elem_size = sizeof(double), .fortran_order = 0,
+    };
+
+    size_t total_count = 1;
+    for (int i = 0; i < ndim; i++) {
+        int dim = va_arg(vararg, int);
+        if (dim <= 0) {
+            fprintf(stderr, "error, negative or zero dimension\n");
+            exit(EXIT_FAILURE);
+        }
+        if ((total_count * dim) / dim != total_count) {
+            fprintf(stderr, "error, multiplication overflow when calculating size\n");
+            exit(EXIT_FAILURE);
+        }
+        result.shape[i] = dim;
+        total_count *= dim;
+    }
+    va_end(vararg);
+
+    result.data = calloc(total_count, sizeof(double));
+    if (!result.data) {
+        fprintf(stderr, "Error allocating numpy array, abort!\n");
+        exit(EXIT_FAILURE);
+    }
     return result;
 }
 

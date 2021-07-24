@@ -32,8 +32,8 @@ int main(int argc, char **argv)
     state_t lattice[TIME_LEN * SPACE_STATE_COUNT];
     int correlation_array[TIME_LEN * SPACE_LEN] = { 0 };
 
-    if (argc != 2) {
-        fprintf(stderr, "usage: %s <filename>\n", argv[0]);
+    if (argc != 3) {
+        fprintf(stderr, "usage: %s <infile> <outfile>\n", argv[0]);
         exit(EXIT_FAILURE);
     }
 
@@ -58,9 +58,11 @@ int main(int argc, char **argv)
         addToCorrelationArray(lattice, correlation_array);
     }
 
-    for (int t = 0; t < TIME_LEN; t++) {
-        for (int x = 0; x < SPACE_LEN - 1; x++)
-            printf("%f, ", ((double)correlation_array[t * SPACE_LEN + x]) / state_counter);
-        printf("%f\n", ((double)correlation_array[(t + 1) * SPACE_LEN - 1]) / state_counter);
-    }
+    npy_array_t output = createNpyDoubleArrayNd(2, TIME_LEN, SPACE_LEN);
+
+    for (int t = 0; t < TIME_LEN; t++)
+        for (int x = 0; x < SPACE_LEN; x++)
+            ((double *)output.data)[t * SPACE_LEN + x] = (double)correlation_array[t * SPACE_LEN + x] / state_counter;
+
+    npy_array_save(argv[2], &output);
 }
