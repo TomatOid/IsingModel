@@ -37,6 +37,11 @@ npy_array_t createNpyDoubleArrayNd(int ndim, ...)
         .elem_size = sizeof(double), .fortran_order = 0,
     };
 
+    if (ndim >= sizeof(result.shape) / sizeof(size_t)) {
+        fprintf(stderr, "too many dimensions in ndarray\n");
+        exit(EXIT_FAILURE);
+    }
+
     size_t total_count = 1;
     for (int i = 0; i < ndim; i++) {
         int dim = va_arg(vararg, int);
