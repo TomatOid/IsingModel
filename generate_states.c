@@ -5,28 +5,30 @@
 #include "record.h"
 #include "parse_args.h"
 
+// yoinked from David Blackman and Sebastiano Vigna's excellent 'PRNG shootout' page (CC0)
+// equivalent to calling xorshift256() 2^128 times
 void jump() {
-	static const uint64_t JUMP[] = { 0x180ec6d33cfd0aba, 0xd5a61266f0c9392c, 0xa9582618e03fc9aa, 0x39abdc4529b1661c };
+    static const uint64_t JUMP[] = { 0x180ec6d33cfd0aba, 0xd5a61266f0c9392c, 0xa9582618e03fc9aa, 0x39abdc4529b1661c };
 
-	uint64_t s0 = 0;
-	uint64_t s1 = 0;
-	uint64_t s2 = 0;
-	uint64_t s3 = 0;
-	for(int i = 0; i < sizeof(JUMP) / sizeof (*JUMP); i++)
-		for(int b = 0; b < 64; b++) {
-			if (JUMP[i] & UINT64_C(1) << b) {
-				s0 ^= xorshift_state[0];
-				s1 ^= xorshift_state[1];
-				s2 ^= xorshift_state[2];
-				s3 ^= xorshift_state[3];
-			}
-			xorshift256();	
-		}
-		
-	xorshift_state[0] = s0;
-	xorshift_state[1] = s1;
-	xorshift_state[2] = s2;
-	xorshift_state[3] = s3;
+    uint64_t s0 = 0;
+    uint64_t s1 = 0;
+    uint64_t s2 = 0;
+    uint64_t s3 = 0;
+    for(int i = 0; i < sizeof(JUMP) / sizeof(*JUMP); i++)
+        for(int b = 0; b < 64; b++) {
+            if (JUMP[i] & UINT64_C(1) << b) {
+                s0 ^= xorshift_state[0];
+                s1 ^= xorshift_state[1];
+                s2 ^= xorshift_state[2];
+                s3 ^= xorshift_state[3];
+            }
+            xorshift256();    
+        }
+        
+    xorshift_state[0] = s0;
+    xorshift_state[1] = s1;
+    xorshift_state[2] = s2;
+    xorshift_state[3] = s3;
 }
 
 
