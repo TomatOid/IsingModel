@@ -19,6 +19,8 @@ npy_array_t createNpyDoubleArray1D(size_t count);
 
 npy_array_t createNpyDoubleArrayNd(int count, ...);
 
+npy_array_t createNpyArrayNd(char typechar, int type_size, int ndim, ...);
+
 int writeHeader(FILE *fp, double j, double beta);
 
 // writes a lattice to the specified FILE *

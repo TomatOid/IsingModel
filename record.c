@@ -66,6 +66,46 @@ npy_array_t createNpyDoubleArrayNd(int ndim, ...)
     return result;
 }
 
+npy_array_t createNpyArrayNd(char typechar, int type_size, int ndim, ...)
+{
+    va_list vararg;
+    va_start(vararg, ndim);
+
+    int endianness = !((uint8_t *)(&(int){1}))[0];
+    npy_array_t result = (npy_array_t) { .data = NULL,
+        .ndim = ndim, .endianness = '<' + 2 * endianness, .typechar = typechar, 
+        .elem_size = type_size, .fortran_order = 0,
+    };
+
+    if (ndim >= sizeof(result.shape) / sizeof(size_t)) {
+        fprintf(stderr, "too many dimensions in ndarray\n");
+        exit(EXIT_FAILURE);
+    }
+
+    size_t total_count = 1;
+    for (int i = 0; i < ndim; i++) {
+        int dim = va_arg(vararg, int);
+        if (dim <= 0) {
+            fprintf(stderr, "error, negative or zero dimension\n");
+            exit(EXIT_FAILURE);
+        }
+        if ((total_count * dim) / dim != total_count) {
+            fprintf(stderr, "error, multiplication overflow when calculating size\n");
+            exit(EXIT_FAILURE);
+        }
+        result.shape[i] = dim;
+        total_count *= dim;
+    }
+    va_end(vararg);
+
+    result.data = calloc(total_count, type_size);
+    if (!result.data) {
+        fprintf(stderr, "Error allocating numpy array, abort!\n");
+        exit(EXIT_FAILURE);
+    }
+    return result;
+}
+
 int writeHeader(FILE *fp, double j, double beta)
 {
     if (fwrite(file_ver_identifier, 1, sizeof(file_ver_identifier) - 1, fp) != sizeof(file_ver_identifier) - 1)

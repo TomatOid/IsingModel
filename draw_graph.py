@@ -8,7 +8,7 @@ plt.plot(hot_energies)
 plt.show()
 
 plt.clf()
-correlation_mat = np.load('correlation_b03.npy')
-print(correlation_mat);
-plt.imshow(correlation_mat);
+correlations = np.load('correlation_b03.npy')
+plt.plot(np.log(correlations).real)
+plt.plot(np.log(correlations).imag)
 plt.show();

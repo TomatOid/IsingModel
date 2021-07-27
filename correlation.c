@@ -66,19 +66,19 @@ int main(int argc, char **argv)
 
     printf("j: %f, beta: %f\n", j, beta);
 
+    npy_array_t correlation_out = createNpyArrayNd('c', sizeof(complex double), 1, TIME_LEN);
+    complex double *correlations = (complex double *)correlation_out.data;
     int state_counter;
-    complex double correlations[TIME_LEN] = { 0 };
-    int n = 1;
+    int n = 0;
     for (state_counter = 0; readState(data_file, lattice) == READ_SUCCESS; state_counter++) {
         complex double output[TIME_LEN];
         fourierTransformSpace(lattice, output, 2 * M_PI * n / SPACE_LEN);
         for (int i = 0; i < TIME_LEN; i++)
             correlations[i] += conj(output[0]) * output[i];
     }
-    for (int i = 0; i < TIME_LEN; i++) {
-        printf("%f + %fi, ", creal(correlations[i]) / state_counter, cimag(correlations[i]) / state_counter);
-    }
-    puts("");
+
+    npy_array_save(argv[2], &correlation_out);
+
     // int state_counter;
     // for (state_counter = 0; readState(data_file, lattice) == READ_SUCCESS; state_counter++) {
     //     multiplyLatticeBy(lattice, getSpinAt(lattice, SPACE_LEN / 2, TIME_LEN / 2));
