@@ -6,7 +6,7 @@
 #include <string.h>
 #include <stdarg.h>
 
-const int8_t *file_ver_identifier = "ISI\x01";
+static const int8_t file_ver_identifier[] = "ISI\x01";
 
 npy_array_t createNpyDoubleArray1D(size_t count)
 {

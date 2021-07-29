@@ -31,12 +31,27 @@ void addToCorrelationArray(state_t *lattice, int *correlation_array)
 
 // apply fourier transform across the space dimension
 // output should have TIME_LEN complex doubles allocated
+static complex double dft_precomp[2 * SPACE_LEN];
+static double last_p_n = INFINITY;
 void fourierTransformSpace(state_t *lattice, complex double *output, double p_n)
 {
+    if (p_n != last_p_n) {
+        for (int x = 0; x < 2 * SPACE_LEN; x += 2) {
+            complex double vec = cexp(CMPLX(0, p_n * x / 2));
+            dft_precomp[x] = -vec;
+            dft_precomp[x + 1] = vec;
+        }
+        last_p_n = p_n;
+    }
+
     for (int t = 0; t < TIME_LEN; t++) {
         complex double sum = CMPLX(0, 0);
-        for (int x = 0; x < SPACE_LEN; x++)
-            sum += CMPLX(getSpinAt(lattice, x, t), 0) * cexp(CMPLX(0, p_n * x));
+        for (int x = 0; x < SPACE_STATE_COUNT; x++) {
+            state_t spin_set = lattice[t * SPACE_STATE_COUNT + x];
+            
+            for (int bit = 0; bit < SPINS_PER_STATE_T; bit++, spin_set >>= 1)
+                sum += dft_precomp[2 * (x * SPINS_PER_STATE_T + bit) + (spin_set & 1)];
+        }
         output[t] = sum;
     }
 }
