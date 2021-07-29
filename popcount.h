@@ -24,7 +24,7 @@ int count1sInState(state_t n)
 {
     int count = 0;
     for (int i = 0; i < sizeof(state_t); i++)
-        count += bitcount_lookup[((uint8_t *)n)[i]];
+        count += bitcount_lookup[((uint8_t *)&n)[i]];
     return count;
 }
 

@@ -71,6 +71,8 @@ int main(int argc, char **argv)
         initLattice(lattice);
         metropolis(lattice, hamiltonian(lattice, j), j, beta, iterations);
         // since writeState() only makes one call to fwrite, it should be thread-safe
+        // this is actually only true on POSIX systems, linux and windows, but that is
+        // basically all of the targets for this program
         if (writeState(data_file, lattice)) {
             fprintf(stderr, "error writing to file\n");
             exit(EXIT_FAILURE);

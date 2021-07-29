@@ -6,7 +6,7 @@ typedef uint64_t state_t; // several spins in a compressed format for fast batch
 typedef int spin_t;       // the type used to represent a single spin
 
 #define SPINS_PER_STATE_T (sizeof(state_t) * CHAR_BIT)                                // the number of spins stored in one state_t variable, aka the number of bits in state_t
-#define TIME_LEN 64                                                                   // size of lattice in the time dimension
+#define TIME_LEN 128                                                                  // size of lattice in the time dimension
 #define SPACE_LEN 64                                                                  // size of lattice in the space dimension
 #define SPACE_STATE_COUNT ((SPACE_LEN + SPINS_PER_STATE_T - 1) / SPINS_PER_STATE_T)   // number of state_t elements in the space dimension
 #define SPACE_REMAINDER ((SPINS_PER_STATE_T * SPACE_STATE_COUNT - 1) % SPACE_LEN + 1)

@@ -68,16 +68,48 @@ int main(int argc, char **argv)
 
     npy_array_t correlation_out = createNpyArrayNd('c', sizeof(complex double), 1, TIME_LEN);
     complex double *correlations = (complex double *)correlation_out.data;
+    npy_array_t stddev_out = createNpyArrayNd('c', sizeof(complex double), 1, TIME_LEN);
+    complex double *stddev = (complex double *)stddev_out.data;
+
     int state_counter;
     int n = 0;
     for (state_counter = 0; readState(data_file, lattice) == READ_SUCCESS; state_counter++) {
         complex double output[TIME_LEN];
         fourierTransformSpace(lattice, output, 2 * M_PI * n / SPACE_LEN);
-        for (int i = 0; i < TIME_LEN; i++)
-            correlations[i] += conj(output[0]) * output[i];
+        for (int i = 0; i < TIME_LEN; i++) {
+            complex double temp = conj(output[0]) * output[i];
+            correlations[i] += temp;
+            // for now just use stddev to hold the sum of the squares,
+            // we will need this later for variance calculation
+            stddev[i] += temp * temp;
+        }
     }
 
-    npy_array_save(argv[2], &correlation_out);
+    for (int i = 0; i < TIME_LEN; i++) {
+        correlations[i] /= state_counter;
+        complex double mean = correlations[i];
+        stddev[i] = csqrt((stddev[i] - state_counter * mean * mean) / state_counter) / sqrt(state_counter);
+    }
+
+    npy_array_list_t *array_head = npy_array_list_prepend(NULL, &stddev_out, "error");
+    if (!array_head) {
+        fprintf(stderr, "npy_array_list error\n");
+        exit(EXIT_FAILURE);
+    }
+    array_head = npy_array_list_prepend(array_head, &correlation_out, "correlations");
+    if (!array_head) {
+        fprintf(stderr, "npy_array_list error\n");
+        exit(EXIT_FAILURE);
+    }
+    
+    if (npy_array_list_save(argv[2], array_head) != 2) {
+        fprintf(stderr, "error saving array list\n");
+        exit(EXIT_FAILURE);
+    }
+
+    return EXIT_SUCCESS;
+
+    //npy_array_save(argv[2], &correlation_out);
 
     // int state_counter;
     // for (state_counter = 0; readState(data_file, lattice) == READ_SUCCESS; state_counter++) {
