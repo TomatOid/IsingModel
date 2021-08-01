@@ -7,7 +7,8 @@
 
 // yoinked from David Blackman and Sebastiano Vigna's excellent 'PRNG shootout' page (CC0)
 // equivalent to calling xorshift256() 2^128 times
-void jump() {
+void jump()
+{
     static const uint64_t JUMP[] = { 0x180ec6d33cfd0aba, 0xd5a61266f0c9392c, 0xa9582618e03fc9aa, 0x39abdc4529b1661c };
 
     uint64_t s0 = 0;
@@ -30,7 +31,6 @@ void jump() {
     xorshift_state[2] = s2;
     xorshift_state[3] = s3;
 }
-
 
 int main(int argc, char **argv)
 {

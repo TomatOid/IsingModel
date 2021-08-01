@@ -5,36 +5,12 @@
 #include "record.h"
 #include "ising.h"
 
-void multiplyLatticeBy(state_t *lattice, int n)
-{
-    state_t xor_by = (state_t)-1;
-    if (n == 1)
-        return;
-    
-    for (int t = 0; t < TIME_LEN; t++)
-        for (int x = 0; x < SPACE_STATE_COUNT; x++)
-            lattice[t * SPACE_STATE_COUNT + x] ^= xor_by;
-}
-
-void addToCorrelationArray(state_t *lattice, int *correlation_array)
-{
-    for (int t = 0; t < TIME_LEN; t++) {
-        for (int x = 0; x < SPACE_STATE_COUNT; x++) {
-            state_t spin_set = lattice[t * SPACE_STATE_COUNT + x];
-
-            for (int bit = 0; bit < SPINS_PER_STATE_T; bit++, spin_set >>= 1)
-                correlation_array[t * SPACE_LEN + x * SPINS_PER_STATE_T + bit] +=
-                    2 * (int)(spin_set & 1) - 1;
-        }
-    }
-}
-
 // apply fourier transform across the space dimension
 // output should have TIME_LEN complex doubles allocated
-static complex double dft_precomp[2 * SPACE_LEN];
-static double last_p_n = INFINITY;
 void fourierTransformSpace(state_t *lattice, complex double *output, double p_n)
 {
+    static complex double dft_precomp[2 * SPACE_LEN];
+    static double last_p_n = INFINITY;
     if (p_n != last_p_n) {
         for (int x = 0; x < 2 * SPACE_LEN; x += 2) {
             complex double vec = cexp(CMPLX(0, p_n * x / 2));
