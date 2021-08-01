@@ -8,68 +8,8 @@
 
 static const int8_t file_ver_identifier[] = "ISI\x01";
 
-npy_array_t createNpyDoubleArray1D(size_t count)
+npy_array_t createNpyArrayNdVaList(char typechar, int type_size, int ndim, va_list vararg)
 {
-    // on little endian, this returns 0, on big endian, this is 1
-    // this will compile error out on super weird machines that have 
-    // sizeof(char) == sizeof(int) instead of returning false results
-    int endianness = !((uint8_t *)(&(int){1}))[0];
-    npy_array_t result = (npy_array_t) { .data = calloc(count, sizeof(double)),
-        .ndim = 1, .endianness = '<' + 2 * endianness, .typechar = 'f', 
-        .elem_size = sizeof(double), .fortran_order = 0,
-    };
-    if (!result.data) {
-        fprintf(stderr, "Error allocating numpy array, abort!\n");
-        exit(EXIT_FAILURE);
-    }
-    result.shape[0] = count;
-    return result;
-}
-
-npy_array_t createNpyDoubleArrayNd(int ndim, ...)
-{
-    va_list vararg;
-    va_start(vararg, ndim);
-
-    int endianness = !((uint8_t *)(&(int){1}))[0];
-    npy_array_t result = (npy_array_t) { .data = NULL,
-        .ndim = ndim, .endianness = '<' + 2 * endianness, .typechar = 'f', 
-        .elem_size = sizeof(double), .fortran_order = 0,
-    };
-
-    if (ndim >= sizeof(result.shape) / sizeof(size_t)) {
-        fprintf(stderr, "too many dimensions in ndarray\n");
-        exit(EXIT_FAILURE);
-    }
-
-    size_t total_count = 1;
-    for (int i = 0; i < ndim; i++) {
-        int dim = va_arg(vararg, int);
-        if (dim <= 0) {
-            fprintf(stderr, "error, negative or zero dimension\n");
-            exit(EXIT_FAILURE);
-        }
-        if ((total_count * dim) / dim != total_count) {
-            fprintf(stderr, "error, multiplication overflow when calculating size\n");
-            exit(EXIT_FAILURE);
-        }
-        result.shape[i] = dim;
-        total_count *= dim;
-    }
-    va_end(vararg);
-
-    result.data = calloc(total_count, sizeof(double));
-    if (!result.data) {
-        fprintf(stderr, "Error allocating numpy array, abort!\n");
-        exit(EXIT_FAILURE);
-    }
-    return result;
-}
-
-npy_array_t createNpyArrayNd(char typechar, int type_size, int ndim, ...)
-{
-    va_list vararg;
-    va_start(vararg, ndim);
 
     int endianness = !((uint8_t *)(&(int){1}))[0];
     npy_array_t result = (npy_array_t) { .data = NULL,
@@ -104,6 +44,26 @@ npy_array_t createNpyArrayNd(char typechar, int type_size, int ndim, ...)
         exit(EXIT_FAILURE);
     }
     return result;
+}
+
+npy_array_t createNpyDoubleArray1D(size_t count)
+{
+    return createNpyArrayNd('f', sizeof(double), 1, (int)count);
+}
+
+npy_array_t createNpyDoubleArrayNd(int ndim, ...)
+{
+    va_list vararg;
+    va_start(vararg, ndim);
+    return createNpyArrayNdVaList('f', sizeof(double), ndim, vararg);
+}
+
+npy_array_t createNpyArrayNd(char typechar, int type_size, int ndim, ...)
+{
+    va_list vararg;
+    va_start(vararg, ndim);
+    
+    return createNpyArrayNdVaList(typechar, type_size, ndim, vararg);
 }
 
 int writeHeader(FILE *fp, double j, double beta)
