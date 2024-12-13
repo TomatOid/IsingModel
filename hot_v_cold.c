@@ -8,15 +8,16 @@
 
 int main(int argc, char **argv)
 {
-    if (argc != 4) {
-        fprintf(stderr, "usage: %s <j> <beta> <iterations>\n", argv[0]);
+    if (argc != 5) {
+        fprintf(stderr, "usage: %s <j> <h*mu> <beta> <iterations>\n", argv[0]);
         exit(EXIT_FAILURE);
     }
 
     double j    = parseDouble(argv[1], "j");
-    double beta = parseDouble(argv[2], "beta");
+    double h_mu = parseDouble(argv[2], "h_mu");
+    double beta = parseDouble(argv[3], "beta");
     
-    unsigned long iterations = parseUnsignedLong(argv[3], "iterations");
+    unsigned long iterations = parseUnsignedLong(argv[4], "iterations");
 
     state_t hot_lattice[TIME_LEN * SPACE_STATE_COUNT]  = { 0 };
     state_t cold_lattice[TIME_LEN * SPACE_STATE_COUNT] = { 0 };
@@ -29,13 +30,13 @@ int main(int argc, char **argv)
 
     // iterate the metropolis algorithm, saving the energies of the hot and cold
     // lattices to the numpy arrays for later graphing
-    double hot_energy  = hamiltonian(hot_lattice, j);
-    double cold_energy = hamiltonian(cold_lattice, j);
+    double hot_energy  = hamiltonian(hot_lattice, j, h_mu);
+    double cold_energy = hamiltonian(cold_lattice, j, h_mu);
     for (unsigned long i = 0; i < iterations; i++) {
         ((double *)(hot_energies.data))[i] = hot_energy / (SPACE_LEN * TIME_LEN);
-        hot_energy  = metropolis(hot_lattice, hot_energy, j, beta, SPACE_LEN * TIME_LEN);
+        hot_energy  = metropolis(hot_lattice, hot_energy, j, h_mu, beta, SPACE_LEN * TIME_LEN);
         ((double *)(cold_energies.data))[i] = cold_energy / (SPACE_LEN * TIME_LEN);
-        cold_energy = metropolis(cold_lattice, cold_energy, j, beta, SPACE_LEN * TIME_LEN);
+        cold_energy = metropolis(cold_lattice, cold_energy, j, h_mu, beta, SPACE_LEN * TIME_LEN);
     }
 
     npy_array_save("hot_energies.npy", &hot_energies);

@@ -7,17 +7,25 @@
 
 // apply fourier transform across the space dimension
 // output should have TIME_LEN complex doubles allocated
-void fourierTransformSpace(state_t *lattice, complex double *output, double p_n)
+void fourierTransformSpace(state_t *lattice, complex double *output, unsigned k)
 {
-    static complex double dft_precomp[2 * SPACE_LEN];
-    static double last_p_n = INFINITY;
-    if (p_n != last_p_n) {
+    double p_n = 2 * M_PI * (double)k / SPACE_LEN;
+
+    static complex double dft_precomp_table[SPACE_LEN][2 * SPACE_LEN] = {{ 0 }};
+    static int initialized[SPACE_LEN] = { 0 };
+    complex double *dft_precomp = NULL;
+    if (k < SPACE_LEN)
+        dft_precomp = &dft_precomp_table[k][0];
+    else
+        return;
+
+    if (!initialized[k]) {
         for (int x = 0; x < 2 * SPACE_LEN; x += 2) {
-            complex double vec = cexp(CMPLX(0, p_n * x / 2));
+            complex double vec = cexp(CMPLX(0, p_n * (x / 2)));
             dft_precomp[x] = -vec;
             dft_precomp[x + 1] = vec;
         }
-        last_p_n = p_n;
+        initialized[k] = 1;
     }
 
     for (int t = 0; t < TIME_LEN; t++) {
@@ -57,29 +65,34 @@ int main(int argc, char **argv)
 
     printf("j: %f, beta: %f\n", j, beta);
 
-    npy_array_t correlation_out = createNpyArrayNd('c', sizeof(complex double), 1, TIME_LEN);
+    npy_array_t correlation_out = createNpyArrayNd('c', sizeof(complex double), 2, SPACE_LEN / 2, TIME_LEN);
     complex double *correlations = (complex double *)correlation_out.data;
-    npy_array_t stddev_out = createNpyArrayNd('c', sizeof(complex double), 1, TIME_LEN);
-    complex double *stddev = (complex double *)stddev_out.data;
+    npy_array_t stddev_out = createNpyArrayNd('f', sizeof(double), 2, SPACE_LEN / 2, TIME_LEN);
+    double *stddev = (double *)stddev_out.data;
 
     int state_counter;
-    int n = 0;
     for (state_counter = 0; readState(data_file, lattice) == READ_SUCCESS; state_counter++) {
-        complex double output[TIME_LEN];
-        fourierTransformSpace(lattice, output, 2 * M_PI * n / SPACE_LEN);
-        for (int i = 0; i < TIME_LEN; i++) {
-            complex double temp = conj(output[0]) * output[i];
-            correlations[i] += temp;
-            // for now just use stddev to hold the sum of the squares,
-            // we will need this later for variance calculation
-            stddev[i] += temp * temp;
+        for (int n = 0; n < SPACE_LEN / 2; n++) {
+            complex double output[TIME_LEN];
+            fourierTransformSpace(lattice, output, n);
+            for (int i = 0; i < TIME_LEN; i++) {
+                complex double temp = conj(output[0]) * output[i];
+
+                // welford's algo
+                complex double delta = temp - correlations[n * TIME_LEN + i];
+                correlations[n * TIME_LEN + i] += delta / (state_counter + 1);
+                complex double delta2 = temp - correlations[n * TIME_LEN + i];
+                stddev[n * TIME_LEN + i] += cabs(delta) * cabs(delta2);
+            }
         }
     }
 
-    for (int i = 0; i < TIME_LEN; i++) {
-        correlations[i] /= state_counter;
-        complex double mean = correlations[i];
-        stddev[i] = csqrt((stddev[i] - state_counter * mean * mean) / state_counter) / sqrt(state_counter);
+    for (int n = 0; n < SPACE_LEN / 2; n++) {
+        double norm = cabs(correlations[n * TIME_LEN]);
+        for (int i = 0; i < TIME_LEN; i++) {
+            correlations[n * TIME_LEN + i] /= norm;
+            stddev[n * TIME_LEN + i] = sqrt(stddev[n * TIME_LEN + i] / state_counter) / norm / sqrt(state_counter);
+        }
     }
 
     npy_array_list_t *array_head = npy_array_list_prepend(NULL, &stddev_out, "error");
@@ -99,20 +112,4 @@ int main(int argc, char **argv)
     }
 
     return EXIT_SUCCESS;
-
-    //npy_array_save(argv[2], &correlation_out);
-
-    // int state_counter;
-    // for (state_counter = 0; readState(data_file, lattice) == READ_SUCCESS; state_counter++) {
-    //     multiplyLatticeBy(lattice, getSpinAt(lattice, SPACE_LEN / 2, TIME_LEN / 2));
-    //     addToCorrelationArray(lattice, correlation_array);
-    // }
-
-    // npy_array_t output = createNpyDoubleArrayNd(2, TIME_LEN, SPACE_LEN);
-
-    // for (int t = 0; t < TIME_LEN; t++)
-    //     for (int x = 0; x < SPACE_LEN; x++)
-    //         ((double *)output.data)[t * SPACE_LEN + x] = (double)correlation_array[t * SPACE_LEN + x] / state_counter;
-
-    // npy_array_save(argv[2], &output);
 }

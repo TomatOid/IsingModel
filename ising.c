@@ -103,55 +103,52 @@ void printLattice(state_t *lattice)
     }
 }
 
-double hamiltonian(state_t *lattice, double j)
+double hamiltonian(state_t *lattice, double j, double h_mu)
 {
-    //printf("%d\n", SPACE_REMAINDER);
     // multiply horizontally
     int horizontal_energy = 0;
+    int total_spins = 0;
     for (int i = 0; i < TIME_LEN; i++) {
         state_t last_carry = lattice[(i + 1) * SPACE_STATE_COUNT - 1] << (SPINS_PER_STATE_T - 1);
-        //printf("%lx\n", last_carry);
-        for (int j = 0; j < SPACE_STATE_COUNT - 1; j++) {
+        for (int j = 0; j < SPACE_STATE_COUNT; j++) {
             state_t this_state = lattice[i * SPACE_STATE_COUNT + j];
             horizontal_energy += popcount(~((last_carry | this_state >> 1) ^ this_state));
+            total_spins += popcount(this_state);
             last_carry = this_state << (SPINS_PER_STATE_T - 1);
         }
-        state_t this_state = lattice[(i + 1) * SPACE_STATE_COUNT - 1];
-        //printf("this_state: %lx\n", last_carry >> (SPINS_PER_STATE_T - SPACE_REMAINDER) | this_state >> 1);
-        horizontal_energy += popcount(~((last_carry >> (SPINS_PER_STATE_T - SPACE_REMAINDER) | this_state >> 1) ^ this_state) & (state_t)-1 >> (SPINS_PER_STATE_T - SPACE_REMAINDER));
     }
     // Now, we need to subtract some constant from it in order to account for the fact that a 0 -> -1 and 1 -> 1
     horizontal_energy = 2 * horizontal_energy - TIME_LEN * SPACE_LEN;
-    
+
     // multiply vertically
     int vertical_energy = 0;
     state_t *above_row = lattice + (TIME_LEN - 1) * SPACE_STATE_COUNT;
     for (int i = 0; i < TIME_LEN; i++) {
         state_t *current_row = lattice + i * SPACE_STATE_COUNT;
-        for (int j = 0; j < SPACE_STATE_COUNT - 1; j++)
+        for (int j = 0; j < SPACE_STATE_COUNT; j++)
             vertical_energy += popcount(~(current_row[j] ^ above_row[j]));
-        vertical_energy += popcount(~(current_row[SPACE_STATE_COUNT - 1] ^ above_row[SPACE_STATE_COUNT - 1]) & ((state_t)-1 >> (SPINS_PER_STATE_T - SPACE_REMAINDER)));
         above_row = current_row;
     }
     // Same deal here
     vertical_energy = 2 * vertical_energy - TIME_LEN * SPACE_LEN;
 
-    return -j * (horizontal_energy + vertical_energy);
+    return -j * (horizontal_energy + vertical_energy) - h_mu * (2 * total_spins - TIME_LEN * SPACE_LEN);
 }
 
-double hamiltonianDebug(state_t *lattice, double j)
+double hamiltonianDebug(state_t *lattice, double j, double h_mu)
 {
     int total_energy = 0;
     for (int x = 0; x < SPACE_LEN; x++) {
         for (int t = 0; t < TIME_LEN; t++) {
             spin_t this_spin = getSpinAt(lattice, x, t);
-            total_energy += this_spin * getSpinAt(lattice, x - 1, t) + this_spin * getSpinAt(lattice, x, t - 1);
+            total_energy -= j * (this_spin * getSpinAt(lattice, x - 1, t) + this_spin * getSpinAt(lattice, x, t - 1))
+                + h_mu * this_spin;
         }
     }
-    return -j * total_energy;
+    return total_energy;
 }
 
-double calculateEnergyChange(state_t *lattice, double j, int x, int t)
+double calculateEnergyChange(state_t *lattice, double j, double h_mu, int x, int t)
 {
     int up     = getSpinAt(lattice, x, t - 1);
     int down   = getSpinAt(lattice, x, t + 1);
@@ -162,17 +159,17 @@ double calculateEnergyChange(state_t *lattice, double j, int x, int t)
     // first, calculate its current contribution
     int current = center * (up + down + left + right);
     // the new contribution is just -current
-    return 2.0 * j * (double)current;
+    return 2.0 * (j * (double)current + h_mu * center);
 }
 
-double metropolis(state_t *lattice, double energy, double j, double beta, int iterations)
+double metropolis(state_t *lattice, double energy, double j, double h_mu, double beta, int iterations)
 {
     for (int i = 0; i < iterations; i++) {
         // first, pick a random point in spacetime
         int x = randomInt(0, SPACE_LEN);
         int t = randomInt(0, TIME_LEN);
 
-        double delta = calculateEnergyChange(lattice, j, x, t);
+        double delta = calculateEnergyChange(lattice, j, h_mu, x, t);
 
         if (uniformFloat() <= exp(-beta * delta)) {
             flipSpinAt(lattice, x, t);

@@ -145,14 +145,18 @@ int readHeader(FILE *fp, double *j, double *beta)
     uint16_t lattice_time_len;
     if (fread(&lattice_time_len, sizeof(lattice_time_len), 1, fp) != 1)
         return ERROR_READ;
-    if (lattice_time_len != htole16(TIME_LEN))
+    if (lattice_time_len != htole16(TIME_LEN)) {
+        printf("Mismatch size, file has TIME_LEN %d\n", lattice_time_len);
         return ERROR_LATTICE_SIZE;
+    }
 
     uint16_t lattice_space_len;
     if (fread(&lattice_space_len, sizeof(lattice_space_len), 1, fp) != 1)
         return ERROR_READ;
-    if (lattice_space_len != htole16(SPACE_LEN))
+    if (lattice_space_len != htole16(SPACE_LEN)) {
+        printf("Mismatch size, file has SPACE_LEN %d\n", lattice_space_len);
         return ERROR_LATTICE_SIZE;
+    }
 
     // could probably adapt for mismatched size at runtime but I don't really feel like it
     uint16_t state_t_bytes; 

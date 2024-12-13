@@ -34,25 +34,26 @@ void jump()
 
 int main(int argc, char **argv)
 {
-    if (argc != 6) {
-        fprintf(stderr, "usage: %s <j> <beta> <iterations> <count> <filename>\n", argv[0]);
+    if (argc != 7) {
+        fprintf(stderr, "usage: %s <j> <h*mu> <beta> <iterations> <count> <filename>\n", argv[0]);
         exit(EXIT_FAILURE);
     }
 
     double j    = parseDouble(argv[1], "j");
-    double beta = parseDouble(argv[2], "beta");
+    double h_mu = parseDouble(argv[2], "h_mu");
+    double beta = parseDouble(argv[3], "beta");
 
-    unsigned long iterations = parseUnsignedLong(argv[3], "iterations");
-    unsigned long count      = parseUnsignedLong(argv[4], "count");
+    unsigned long iterations = parseUnsignedLong(argv[4], "iterations");
+    unsigned long count      = parseUnsignedLong(argv[5], "count");
 
-    char *filename = argv[5];
+    char *filename = argv[6];
 
     FILE *data_file = fopen(filename, "w");
     if (!data_file) {
         perror("error opening file");
         exit(EXIT_FAILURE);
     }
-    
+
     if (writeHeader(data_file, j, beta)) {
         fprintf(stderr, "error writing to file\n");
         exit(EXIT_FAILURE);
@@ -67,9 +68,9 @@ int main(int argc, char **argv)
 
 #pragma omp parallel for
     for (unsigned long i = 0; i < count; i++) {
-        state_t lattice[TIME_LEN * SPINS_PER_STATE_T];
+        state_t lattice[TIME_LEN * SPINS_PER_STATE_T] = { 0 };
         initLattice(lattice);
-        metropolis(lattice, hamiltonian(lattice, j), j, beta, iterations);
+        metropolis(lattice, hamiltonian(lattice, j, h_mu), j, h_mu, beta, iterations);
         // since writeState() only makes one call to fwrite, it should be thread-safe
         // this is actually only true on POSIX systems, linux and windows, but that is
         // basically all of the targets for this program
@@ -77,6 +78,12 @@ int main(int argc, char **argv)
             fprintf(stderr, "error writing to file\n");
             exit(EXIT_FAILURE);
         }
+        //puts("");
+        //printLattice(lattice);
+        //metropolis(lattice, hamiltonian(lattice, j, 0), j, 0, beta, iterations);
+        //puts("zero applied field");
+        //printLattice(lattice);
+
     }
     fclose(data_file);
 }

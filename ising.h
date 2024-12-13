@@ -41,8 +41,8 @@ void flipSpinAt(state_t *lattice, int x, int t);
 
 void printLattice(state_t *lattice);
 
-double hamiltonian(state_t *lattice, double j);
+double hamiltonian(state_t *lattice, double j, double h_mu);
 
-double calculateEnergyChange(state_t *lattice, double j, int x, int t);
+double calculateEnergyChange(state_t *lattice, double j, double h_mu, int x, int t);
 
-double metropolis(state_t *lattice, double energy, double j, double beta, int iterations);
+double metropolis(state_t *lattice, double energy, double j, double h_mu, double beta, int iterations);
